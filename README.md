@@ -20,13 +20,31 @@
         - Kekurangannya adalah ada overhead memori dan komputasi karena melibatkan message passing melalui channel alih-alih mengembalikan iterator secara langsung.
 
     5. In what ways could the Rust gRPC code be structured to facilitate code reuse and modularity, promoting maintainability and extensibility over time?
+        - Memisahkan crate, seperti satu crate yang hanya berisi file .proto dan build script.
+        - Pemisahan transport & Business logic, contohnya tonic baiknya hanya bertugas sebagai pengurai request gRPC dan membentuk response. Logika bisnis berada di modul ataupun fungsi rust terpisah yang murni, dan mudah untuk dilakukan unit test.
     
     6. In the MyPaymentService implementation, what additional steps might be necessary to handle more complex payment processing logic?
+        - Integrasikan dengan database yang berfungsi menyimpan status transaksi.
+        - Hubungkan dengan pihak ketiga & Timeout, seperti hubungkan ke layanan payment gateway eksternal, seperti midtrans, atau stripe. Selain itu, lakukan mekanisme timeout untuk mengatasi kagagalan layanan eksternal
+        - Tambahkan log dan ID pelacakan supaya tiap transaksi tercatat dengan baik.
     
     7. What impact does the adoption of gRPC as a communication protocol have on the overall architecture and design of distributed systems, particularly in terms of interoperability with other technologies and platforms?
+        - Memiliki komunikasi internal antarservice yang sangat ideal karena payload binernya jauh lebih kecil dan serialize/deserialize menjadi lebih cepat.
+        - komunikasi antar bahasa, misal layanan pembayaran dengan rust, layanan analitik dengan python semuannya dapat berkomunikasi dengan baik.
     
     8. What are the advantages and disadvantages of using HTTP/2, the underlying protocol for gRPC, compared to HTTP/1.1 or HTTP/1.1 with WebSocket for REST APIs?
+        - Kelebihannya HTTP/2 dapat mengirimkan banyak request dan response secara paralel lewat 1 koneksi TCP tunggal. HTTP/1 rentan terhadap satu request lambat akan memblokir antrian lain
+        - HTTP/2 menggunakan HPACK untuk mengompresi header, hal ini sangat mengurangi beban bandwidth, dibanding HTTP/1.1 yang mengirimkan header dalam bentuk teks biasa setiap saat.
+        - ebSocket memungkinkan komunikasi dua arah, tapi format datanya tidak terstruktur. gRPC menyediakan streaming dua arah yang memiliki schema dan tipe data yang jelas, sehingga lebih aman digunakan untuk sistem kompleks.
     
     9. How does the request-response model of REST APIs contrast with the bidirectional streaming capabilities of gRPC in terms of real-time communication and responsiveness?
+        - REST berjalan dengan cara jika jklien ingin data real-time, ia harus melakukan polling, yaitu bertanya ke server "adakah pesan baru?" tiap beberapa saat. Hal tersebut akan buang-buang koneksi jaringan, CPU, dan meningkatnya latensi
+        - gRPC berjalan dengan membiarkan koneksi TCP dibarkan terbuka terus-terusan. Saat server ada pesan baru, pesan itu akan dikirimkan langsung ke klien dengan isntan tanpa klien perlu memintanya berkali-kali. Hal ini membuat responsivitas waktu nyata yang sebenarnya.
     
     10. What are the implications of the schema-based approach of gRPC, using Protocol Buffers, compared to the more flexible, schema-less nature of JSON in REST API payloads?
+        A. Protobuf
+            - Implikasi positifnya validasi tipe dilakukan dengan ketat. Jika server mencoba mengubah tipe suatu data dari integer ke string, kode akan gagal di-compile sehingga mencegah bug runtime.
+            - Implikasi negatifnya adalah menjadi tidak human-readable. Kita tidak akan bisa langsung menggunakan curl untuk melihat teks response, tapi harus ada file.proto untuk menerjemahkan data biner yang kita terima.
+        B. JSON
+            - Implikasi positif: fleksibel, human-readable, dan mudah didebug menggunakan tools, seperti Postman.
+            - implikasi negatif: Berpotensi membuat error di produksi jika saja ada satu microservice yang mengubah struktur key JSON tanpa diketahui. Selain itu, ukuruan payload jauh lebih besar dikarenakan berbentuk teks penuh.
